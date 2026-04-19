@@ -1,10 +1,49 @@
 import axios, { AxiosError } from "axios";
-import { JSDOM } from "jsdom";
-import { Readability } from "@mozilla/readability";
+import * as cheerio from "cheerio";
 import { ScrapedData } from "../types";
 import { countWords } from "../utils/textUtil";
 
-// Fetch a blog URL → extract clean article content via Readability
+// Extract article content from HTML
+function extractArticleContent(html: string, url: string): { title: string; text: string; excerpt: string; content: string } {
+  const $ = cheerio.load(html);
+  
+  // Remove script and style tags
+  $('script, style').remove();
+  
+  // Get title
+  let title = $('meta[property="og:title"]').attr('content') || 
+              $('title').text() || 
+              $('h1').first().text() || 
+              'Untitled';
+  
+  // Get excerpt
+  let excerpt = $('meta[property="og:description"]').attr('content') || 
+                $('meta[name="description"]').attr('content') || 
+                '';
+  
+  // Get main content (simple heuristic)
+  let content = '';
+  const article = $('article, main, [role="main"]').first();
+  
+  if (article.length > 0) {
+    content = article.html() || '';
+  } else {
+    // Fallback: get body content
+    content = $('body').html() || '';
+  }
+  
+  // Extract text and clean it
+  const text = cheerio.load(content).text().replace(/\s+/g, " ").trim();
+  
+  return {
+    title: title.trim(),
+    text,
+    excerpt: excerpt.trim(),
+    content: content || html
+  };
+}
+
+// Fetch a blog URL → extract clean article content via simple parser
 export async function scrapeBlog(url: string): Promise<ScrapedData> {
   try {
     const response = await axios.get<string>(url, {
@@ -25,14 +64,8 @@ export async function scrapeBlog(url: string): Promise<ScrapedData> {
     }
 
     const rawHtml = response.data;
-    const dom = new JSDOM(rawHtml, { url });
-    const article = new Readability(dom.window.document).parse();
-
-    if (!article || !article.textContent) {
-      throw new Error('No article content found. The page might be behind a paywall, require login, or have no readable content.');
-    }
-
-    const text = article.textContent.replace(/\s+/g, " ").trim();
+    const extracted = extractArticleContent(rawHtml, url);
+    const text = extracted.text;
     
     // Validate we got meaningful content
     if (text.length < 100) {
@@ -40,10 +73,10 @@ export async function scrapeBlog(url: string): Promise<ScrapedData> {
     }
 
     return {
-      title: article.title ?? "Untitled",
+      title: extracted.title,
       text,
-      html: article.content ?? "",
-      excerpt: article.excerpt ?? "",
+      html: extracted.content,
+      excerpt: extracted.excerpt,
       wordCount: countWords(text),
     };
   } catch (err: unknown) {
