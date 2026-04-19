@@ -1,6 +1,8 @@
 import { NextResponse } from 'next/server';
 import { getRoastCount, getRecentRoasts } from '@/services/roastDbService';
 
+export const revalidate = 60; // Cache for 60 seconds
+
 export async function GET() {
   try {
     const [count, recent] = await Promise.all([

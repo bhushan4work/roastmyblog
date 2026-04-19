@@ -1,11 +1,19 @@
 'use client';
 
 import { useState, useEffect } from "react";
-import { fetchStats, type RecentRoast } from "@/lib/api";
+import useSWR from "swr";
+import { type RecentRoast } from "@/lib/api";
 
 interface Props {
   onSubmit: (url: string) => void;
 }
+
+// SWR fetcher function
+const fetcher = async (url: string) => {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error('Failed to fetch stats');
+  return res.json();
+};
 
 // Fixed avatar seeds for the PFP row
 const AVATAR_SEEDS = [
@@ -15,24 +23,20 @@ const AVATAR_SEEDS = [
 
 export default function Hero({ onSubmit }: Props) {
   const [url, setUrl] = useState("");
-  const [count, setCount] = useState(0);
-  const [recent, setRecent] = useState<RecentRoast[]>([]);
-
-  useEffect(() => {
-    const loadStats = async () => {
-      try {
-        const s = await fetchStats();
-        setCount(s.count);
-        setRecent(s.recent);
-      } catch (error) {
-        console.error('Failed to fetch stats:', error);
-        // Silently fail - show 0 count if stats unavailable
-        setCount(0);
-        setRecent([]);
-      }
-    };
-    loadStats();
-  }, []);
+  
+  // SWR: caches stats for 60 seconds, instant refetch on mount if cache fresh
+  const { data, isLoading, error } = useSWR(
+    '/api/stats',
+    fetcher,
+    {
+      revalidateOnFocus: false, // Don't refetch when tab regains focus
+      dedupingInterval: 60000, // Cache for 60 seconds
+      focusThrottleInterval: 60000,
+    }
+  );
+  
+  const count = data?.count || 0;
+  const recent = data?.recent || [];
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,7 +111,7 @@ export default function Hero({ onSubmit }: Props) {
         </div>
       </form>
 
-      {/* PFP row + counter */}
+      {/* PFP row + counter with skeleton */}
       <div className="flex items-center gap-2 mt-4 animate-fade-in-delay">
         <div className="flex -space-x-1.5">
           {AVATAR_SEEDS.map((seed) => (
@@ -120,7 +124,11 @@ export default function Hero({ onSubmit }: Props) {
           ))}
         </div>
         <span className="text-[#888] text-xs font-mono">
-          +{count} blogs roasted
+          {isLoading ? (
+            <span className="animate-pulse">Loading...</span>
+          ) : (
+            `${count} blogs roasted`
+          )}
         </span>
       </div>
 
@@ -138,7 +146,7 @@ export default function Hero({ onSubmit }: Props) {
             <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
 
             <div className={`flex gap-4 ${needsMarquee ? "marquee-track" : "justify-center"}`}>
-              {firstRow.map((r, i) => (
+              {firstRow.map((r: RecentRoast, i: number) => (
                 <div
                   key={`marquee1-${r.url}-${i}`}
                   className="flex-shrink-0 w-80 border border-[#222] rounded-md px-4 py-2 bg-[#111] hover:border-[#de7356] transition-colors shadow-lg"
@@ -167,7 +175,7 @@ export default function Hero({ onSubmit }: Props) {
               <div className="absolute right-0 top-0 bottom-0 w-24 bg-gradient-to-l from-[#0a0a0a] to-transparent z-10 pointer-events-none" />
 
               <div className={`flex gap-4 ${needsMarquee ? "marquee-track-reverse" : "justify-center"}`}>
-                {secondRow.map((r, i) => (
+                {secondRow.map((r: RecentRoast, i: number) => (
                   <div
                     key={`marquee2-${r.url}-${i}`}
                     className="flex-shrink-0 w-80 border border-[#222] rounded-md px-4 py-2 bg-[#111] hover:border-[#de7356] transition-colors shadow-lg"
