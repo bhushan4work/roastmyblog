@@ -67,5 +67,18 @@ export default function Home() {
     );
   }
 
-  return <Hero onSubmit={handleSubmit} />;
+  return (
+    <div className="flex flex-col min-h-screen">
+      <Hero onSubmit={handleSubmit} />
+      <footer className="mt-auto">
+        <div className="max-w-sm mx-auto pt-4 pb-6 text-center">
+          <p className="text-[#555] text-xs font-mono">
+            built by <span className="text-[#777]">bhushan agrawal</span> · follow me on{" "}
+            <a href="https://x.com/bhushan4work" target="_blank" rel="noopener noreferrer" className="text-[#777] hover:text-[#999] transition-colors underline underline-offset-2">𝕏 twitter</a>{" "}
+            · © 2026 roast my blog
+          </p>
+        </div>
+      </footer>
+    </div>
+  );
 }

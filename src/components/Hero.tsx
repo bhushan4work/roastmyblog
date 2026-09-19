@@ -76,7 +76,7 @@ export default function Hero({ onSubmit }: Props) {
   const secondRow = showSecondRow ? (needsMarquee ? [...recent.slice(half), ...recent.slice(half)] : recent.slice(half)) : [];
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-1 md:px-0">
+    <div className="flex-1 flex flex-col items-center justify-center px-1 md:px-0">
       {/* Title */}
       <h1 className="text-4xl md:text-5xl font-bold text-white text-center mb-4 animate-fade-in tracking-tight uppercase"
           style={{ fontFamily: "'Space Grotesk', monospace" }}>
